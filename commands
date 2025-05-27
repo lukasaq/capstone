@@ -1,1 +1,108 @@
+################ Mod 16 Lesson 1 ################
+######### Phishing Attacks and Defenses #########
+
+dashboard is start for zeek/ 
+
+
+
+################ Mod 16 Lesson 2 ################
+######### Directory Attacks and Defenses #########
+
+query
+
+Run the following query. Recall that event ID 4769 corresponds to service ticket requests.
+event.module:windows_eventlog and event.code:4769
+event.module: Filters out events from other data sources such as System Monitor (Sysmon) and Zeek
+event.code: Windows event log code that uniquely identifies the type of event
+
+
+Run the following query to find occurrences of PtH attacks:
+
+event.module:windows_eventlog and event.code:4624 and winlog.event_data.LogonType:9 and winlog.event_data.LogonProcessName:SecLogo
+
+
+Run the following query to find activity associated with the adversary’s new session. The new subject ID in this case is the TargetLogonId from the previous log entry. The query is case-sensitive, so ensure that the LogonID is lowercase.
+
+winlog.event_data.SubjectLogonId:0x32e6b93
+
+
+While delegation is not explicitly denied for the user account, user accounts are permitted to delegate to some degree, so this is not as concerning.
+ get-aduser -Identity Bradley.Phillips -Property accountnotdelegated
+
+
+The user has DC Replicating Domain Changes, as seen from the output of the following command:
+Get-ACL "AD:\DC=cda,DC=corp" | Select-Object -Expandproperty access | Where-Object -property ObjectType -eq "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2"
+
+Now that it is known that the account is over-provisioned, check the Kibana dashboard to see if the attacker utilized the account to conduct a DCSync attack. Run the following query to search for DCSync attacks:
+event.code:4662 and message:"1131f6ad-9c07-11d1-f79f-00c04fc2dcd2"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
