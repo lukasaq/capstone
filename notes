@@ -1,1 +1,151 @@
+################ Mod 16 Lesson 1 ################
+######### Phishing Attacks and Defenses #########
+
+
+
+
+
+################ Mod 16 Lesson 2 ################
+######### Directory Attacks and Defenses #########
+
+image saved : win event ids
+image saved : attack event ids
+image saved : 
+image saved : 
+image saved : 
+image saved : 
+image saved : 
+image saved : 
+
+The Windows Security event log is a good starting point for detecting Malicious Cyberspace Activity (MCA) on a host. Windows Security event logs are also commonly forwarded to a Security Information Event Manager (SIEM). Once MCA has been detected, these security event IDs may further illuminate what the adversary did while they were in the network.
+
+
+Event ID 4624 — An account was successfully logged on: When an account successfully authenticates and a session is generated, this event is generated. Information in the event includes who logged on, what method they used to log on (e.g., over the network or locally), and their privilege level. These event logs are very useful for monitoring who was logged on before an incident occurred, which may provide a lead to finding other MCA.
+
+
+Event ID 4625 — An account failed to log on: This event is generated if an account logon attempt failed when the account was already locked out. It also generates for a logon attempt after which the account was locked out. Adversaries may generate these logs when attempting to access different user accounts without the necessary credentials.
+
+
+Event ID 4648 — A logon was attempted using explicit credentials: This event occurs when a process attempts a logon by explicitly stating that account’s credentials. Normal occurrence of this may occur during batch jobs, using the runas command, WinRM logins, etc. These events may raise more flags if a privileged account was associated with the credentials. If switching logins during a session, an event code 4648 is likely generated.
+
+
+Event ID 4663 — An attempt was made to access an object: This event indicates that a specific operation was performed on an object. An object is defined as either a filesystem, filesystem object, kernel, registry object, or removable device. This event can illuminate what files or data the adversary was trying to access on the target.
+
+
+Event ID 4688 — A new process has been created: Documents each program or process that a system executes, its parent process, the user that spawned the process, privilege level, etc. While these events may generate a lot of noise, they are very useful in determining what occurred during an attack.
+
+
+Event ID 4672 — Special privileges assigned to new logon: Tracks whether any special privileges were associated with new logons. This is another noisy event since every logon of SYSTEM triggers this event. In accordance with monitoring privileged accounts, however, this event could provide valuable accountability and correlation data, e.g. which account initiated the new log on.
+
+
+PowerShell Logging
+
+
+PowerShell maintains its own event logs outside of Windows Security event logs. Event IDs from the PowerShell logs of note include:
+
+
+Event ID 4103: Corresponds to Module Logging. Module logging records pipeline execution details as PowerShell executes including variable initialization and command invocations. Module logging records portions of scripts, some deobfuscated code, and some data formatted for output. This logging captures some details missed by other PowerShell logging sources, though it potentially may not capture the commands executed.
+
+
+Event ID 4104: Corresponds to PowerShell script block logging, which is not enabled by default. Script block logging records blocks of code as they are executed by the PowerShell engine, and captures the full contents of code executed by an attacker including scripts and commands. It captures the output of deobfuscated commands unlike event ID 4103.
+
+
+NOTE: Updated versions of Windows Management Framework (version 4.0 or 5.0 depending on your OS) may need to be installed to enable enhanced PowerShell logging.
+
+
+Kerberoast: This can be detected under event ID 4769 — A Kerberos service ticket was requested. If the TicketEncryptionType is 0x17 in the event, it means the ticket is encrypted with the Rivest Cipher (RC) 4 cipher, which is a weaker algorithm that an adversary can break more easily.
+
+
+DCSync: Artifacts generated include events with the ID 4662 — An operation was performed on an object, and the following possible Globally Unique Identifiers (GUID) and their associated control access right:
+
+1131f6ad-9c07-11d1-f79f-00c04fc2dcd2: Directory Service (DS) Replication Get Changes
+1131f6ad-9c07-11d1-f79f-00c04fc2dcd2: DS Replication Get Changes All
+9923a32a-3607-11d2-b9be-0000f87a36b2: DS Install Replica
+89e95b76-444d-4c62-991a-0facbeda640c: DS Replication Get Changes in Filtered Set
+
+
+
+The fields impart the following information:
+winlog.event_data.ServiceName: Name of the service or resource to be accessed. This can be a computer account or user account.
+winlog.event_data.TargetUserName: Account attempting to access the resource. This can be a computer account or user account.
+winlog.event_data.TicketEncryptionType: Encryption type that is obfuscating the ticket contents. Table 16.3-4 lists ticket encryption types from Microsoft documentation:
+
+
+
+Kerberos utilizes symmetric key encryption to maintain confidentiality (i.e., the same key to encrypt and decrypt data). The key is oftentimes derived from the password hash, though this depends on the cipher-suite selected, which is determined by the Ticket Encryption Type. Both ticket encryption types of 0x12 and 0x17 use hashes to encrypt.
+
+
+The cipher-suite associated with ticket encryption type 0x17 uses Rivest Cipher 4 (RC4) and Message Digest 5 (MD5). RC4 is a fast encryption algorithm that has existed since the 1990s, and has been associated with a few notable security vulnerabilities, particularly with the Wireless Fidelity (Wi-Fi) standard Wired Equivalent Privacy (WEP). The hashing algorithm used with this ticket encryption type is MD5, which has been deemed cryptographically insecure.
+
+
+The cipher-suite associated with ticket encryption type 0x12 uses Advanced Encryption Standard 256 (AES256) and Secure Hashing Algorithm 1 (SHA1). AES256 is a more modern encryption algorithm that is harder to break; the 256 denotes that the key length is 256 bits. SHA1 is the hashing algorithm used, and is a stronger hashing function than Message Digest (MD) 5.
+
+
+Tickets with the encryption types 0x17 are much easier to brute force, which allows an adversary to expand their access within the network. Kerberoasting typically involves tickets with 0x17 as they are the most susceptible to cracking. 
+
+
+Some common service accounts that are likely to allow lateral movement as per ADsecurity.org are:
+
+
+Advanced Group Policy Management (AGPM) Server: Often has full control rights to all GPOs
+
+Microsoft Structured Query Language (SQL) Server (MSSQL)/MSSQLSvc: Administrator rights to SQL server(s), which often have interesting data
+
+Forefront Identity Manager (FIM) Service: Often has administrator rights to multiple AD Forests
+
+Security Token Service (STS): VMWare SSO service that could provide backdoor VMWare access. Adversaries also often only search for accounts with administrative privileges.
+
+
+
+Recall that event ID 4624 denotes a logon event. 
+logon type 9 denotes that the user specified new credentials for other connections
+
+
+
+an event ID of 4672, which indicates that it is a privileged local session.
+
+
+log clear query
+event.module:windows_eventlog and event.code:1102
+
+
+This query searches both the Subject and Target LogonIDs, which returns events from the session, as well as events leading up to the session:
+winlog.event_data.SubjectLogonId:"0xB87787E" or winlog.event_data.TargetLogonId:"0xB87787E"
+
+his query searches the entire Message field rather than just the Subject and Target LogonIDs, so it can potentially return more data, though it may return false positives in environments with more traffic.
+
+event.module:windows_eventlog and message:"0xB87787E"
+
+
+Recall that process auditing can be seen under event ID 4688. If and event.code:4688 is appended to the session query,
+
+
+
+Finding the user that started the session is somewhat difficult. Event code 4624 tracks new logons. A query like this one would be a starting point:
+event.module:windows_eventlog and event.code:4624 and message:Jdoe
+
+
+Another event code that can be useful when a user changes logons is event code 4648 — A logon was attempted using explicit credentials. The query would appear as follows:
+event.module:windows_eventlog and event.code:4648 and message:jdoe
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
