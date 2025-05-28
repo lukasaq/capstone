@@ -130,7 +130,8 @@ event.module:windows_eventlog and event.code:4648 and message:jdoe
 
 
 
-
+################ Mod 17 Lesson 3 ################
+######### MitM Attacks and Defenses #########
 
 
 
