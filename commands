@@ -43,6 +43,7 @@ event.code:4662 and message:"1131f6ad-9c07-11d1-f79f-00c04fc2dcd2"
 
 
 
+Invoke-Command -ComputerName "cda-exec-1" -Credential $credentials -ScriptBlock {Get-ChildItem -Path C:\ProgramData\tmp\}
 
 
 
