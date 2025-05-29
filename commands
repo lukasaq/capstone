@@ -47,7 +47,8 @@ Invoke-Command -ComputerName "cda-exec-1" -Credential $credentials -ScriptBlock 
 
 
 
-
+$credentials = Get-Credential
+Invoke-Command -Credential $credentials -ComputerName 'cda-exec-1' -ScriptBlock {Get-ChildItem 'C:\ProgramData\tmp\'}
 
 
 
